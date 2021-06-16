@@ -1,0 +1,47 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.App {
+  max-width: calc(9px * 35 + 1px * 2); /* (マスの幅) * 個数 + (ボーダーの幅) * 本数 */
+  text-align: center;
+}
+
+/* borderを含めた幅で要素の幅が計算されるように */
+*,
+*:before,
+*:after {
+  box-sizing: border-box;
+}
+
+/* 要素が真ん中によるようにフレックスボックスを設定 */
+#root {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.field {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.dots {
+  height: 9px;
+  width: 9px;
+  background-color: #0f1d1d;
+}
+
+.snake {
+  background-color: #fff;
+}
+
+.food {
+  background-color: pink;
+}
