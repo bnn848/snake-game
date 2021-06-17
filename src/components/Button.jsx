@@ -1,13 +1,12 @@
 
-const Button = ({onStart, onRestart, status}) => {
+const Button = ({onStart, onStop, onRestart, status}) => {
   return (
     <div className="button">
-      { // ゲーム状態に応じて表示するボタンを変更する（三項演算子）
-        status === "gameover" ?
-        <button onClick={onRestart}>gameover</button>
-        :
-        <button onClick={onStart}>start</button>
-      }
+      {/* ゲーム状態に応じて表示するボタンを変更する（三項演算子）*/}
+      {status === 'gameover' && <button className="btn btn-gameover" onClick={onRestart}>gameover</button>}
+      {status === 'init' && <button className="btn btn-init" onClick={onStart}>start</button>}
+      {status === 'suspended' && <button className="btn btn-suspended" onClick={onStart}>start</button>}
+      {status === 'playing' && <button className="btn btn-playing" onClick={onStop}>stop</button>}
     </div>
   )
 };

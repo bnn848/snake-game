@@ -9,14 +9,19 @@ import Navigation from './components/Navigation';
 import Field from './components/Field';
 import Button from './components/Button';
 import ManipulationPanel from './components/ManipulationPanel';
-import { initFields } from './utils/index';
+import { initFields, getFoodPosition } from './utils/index';
 
 /* snakeの初期位置 */
 const initialPosition = {x: 17, y: 17}; // useStateは初期値にオブジェクトを持てない。 ---> useEffectで設定
 
 /* Fieldのサイズ指定 */
-// const initialValues = initFields(35); ---> snakeの位置も動的に管理したい
+// const initialValues = initFields(35); ---> snakeの位置も動的に管理したいので以下の通り変更する。
 const initialValues = initFields(35, initialPosition);
+
+/* difficultyの設定と状態保持 */
+// setIntervalの第2引数に渡す変数、数字が小さいほどsnakeの移動速度が速い。
+const defaultDifficulty = 3; // Difficulty[3]という意味なので100msのこと。
+const Difficulty = [1000, 500, 100, 50, 3];
 
 /* GameStatus */
 // ゲームの状態を文字列で管理する
@@ -100,29 +105,39 @@ const isCollision = (fieldSize, position) => { // パラメータにfieldとposi
   return false;
 };
 
+/* isEatingMyself */
+// 次のpositionがsnakeかどうかを判定する
+const isEatingMyself = (fields, position) => {
+  return fields[position.y][position.x] === "snake";
+};
+
 
 /* Appコンポーネント */
 const App = () => {
 
+  /* state管理 */
   const [fields, setFields] = useState(initialValues); // fieldの状態管理
-  const [position, setPosition] = useState(); // snakeの位置情報
-  const [tick, setTick] = useState(0); // position === undefinedのままsetIntervalが実行されないように変数をセットする
+  const [tick, setTick] = useState(0); // position === undefinedのままsetIntervalが実行されないように変数をセットする。
   const [status, setStatus] = useState(GameStatus.init) // ゲームの状態管理（初期値は init ）
   const [direction, setDirection] = useState(Direction.up) // 進行方向（初期値は up ）
+  const [body, setBody] = useState([]); // snakeの体の長さ[配列として管理]
+  const [difficulty, setDifficulty] = useState(defaultDifficulty); // ゲーム難易度
 
-  useEffect(() => { // snakeの初期値オブジェクトを初回描画時のみレンダリングする
-    setPosition(initialPosition); // snakeの位置
+  /* useEffect */
+  useEffect(() => { // snakeの初期値オブジェクトを初回描画時のみレンダリングする。
+    setBody([initialPosition]); // snakeの初期位置位置を描画する。
+    const interval = Difficulty[difficulty -1] // 配列[0~4]の中から選択する。
     timer = setInterval(() => { // コールバック関数をdefaultIntervalミリ秒ごとに呼び出す。
       setTick((tick) => tick + 1); // 一定間隔でレンダリングするようにする<------------------------- ???
-    },defaultInterval);
+    },interval);
     return unsubscribe; // useEffect内のreturnはコンポーネントが削除されるタイミングで実行される。
-  },[]);
+  },[difficulty]);
 
   useEffect(() => {
-    if (!position || status !== GameStatus.playing) { // 初回レンダリング時には position === undefined
+    if (body.length === 0 || status !== GameStatus.playing) { // 初回レンダリング時には position === undefined
       return;
     } else {
-      const canContinue = handleMoving(); // <--- goUpメソッドが返すboolean値を受け取る。
+      const canContinue = handleMoving(); // <--- handleMovingメソッドが返すboolean値を受け取る。
       if (!canContinue) {
         unsubscribe();
         setStatus(GameStatus.gameover);
@@ -140,6 +155,13 @@ const onStart = () => {
   )
 };
 
+/* onStop */
+const onStop = () => {
+  return (
+    setStatus(GameStatus.suspended)
+  )
+};
+
 /* onRestart */
 // 1.タイマー 2.ステータス 3.snakeの位置 4.フィールド を初期化する。
 const onRestart = () => {
@@ -148,7 +170,7 @@ const onRestart = () => {
   },defaultInterval);
   setDirection(Direction.up); // <--- 教材ではResetボタン実装時に追加しているが、方向管理実装時にすべき。
   setStatus(GameStatus.init); // init状態にする。
-  setPosition(initialPosition); // position（状態管理）を初期状態に戻す。
+  setBody([initialPosition]); // snakeのbodyの長さを初期状態に戻す。
   setDirection(Direction.up); // ゲームスタート時まず上に向かう。
   setFields(initFields(35, initialPosition)); // fieldとsnakeの描画を初期状態に戻す。
 }
@@ -157,7 +179,7 @@ const onRestart = () => {
 // ゲームプレイ中だけボタン操作可能
 // ボタンで方向を変更する。（進行方向と逆方向へは変更できない）
 // useCallback(()=>{},[]) : 依存する関数の更新時に再レンダーするため、関数をメモ化できるHook
-// 再生成にかかる計算を省略できるので、無駄な処理が少なくて済む。
+// 関数は描画ごとに新しいものとして再生成される。その計算を省略できるので、無駄な処理が少なくて済む。
 // => useMemo()と同義、useMemoはあくまで値を保存するために使う。
 const onChangeDirection = useCallback((newDirection) => { // ManipulationPanel.jsxからonChangeの引数を受け取る。
   if (status !== GameStatus.playing) { // プレイ中でない場合はそのままの状態を保持する。
@@ -169,6 +191,22 @@ const onChangeDirection = useCallback((newDirection) => { // ManipulationPanel.j
 
   setDirection(newDirection); // 問題なければ押下したボタンに対応した進行方向へ変更する。
 },[direction, status]); // directionまたはstatusが更新されるたびに発火する。
+
+/* onChangeDifficulty */
+// 難易度設定の実装
+// 無駄な関数再生成を回避するためにuseCallBackを使う。
+const onChangeDifficulty = useCallback((difficulty) => { // メモ化しておく
+  if (status !== GameStatus.init) { // gameが始まっていない場合
+    return;
+  }
+  if (difficulty < 1 || difficulty > difficulty.length) { // 現在の難易度が最低もしくは最高の場合
+    return;
+  }
+
+  setDifficulty(difficulty) // 難易度ステートを変更する。
+  // eslint-disable-next-line
+}, [status, difficulty]); // statusとdifficultyに変更があった時onChangeDifficultyを呼び出す。
+
 
 /* handleKeyDown */
 // keydownとonChangeDirectionを結びつける。
@@ -188,8 +226,9 @@ useEffect(() => {
 
 /* handleMoving */
 // Buttonに応じて進行方向を変更するメソッド
+// snakeの長さ管理も行う
   const handleMoving = () => {
-    const {x, y} = position; // positionはxとyに分割できるオブジェクト
+    const {x, y} = body[0]; // bodyの先頭を分割代入。
     // const nextY = Math.max(y -1, 0); // y-1 or 0 の大きい方をnextYに代入する。
     const delta = Delta[direction];
     const newPosition = {
@@ -197,13 +236,26 @@ useEffect(() => {
       y: y + delta.y
     };
 
-    if (isCollision(fields.length, newPosition)) { // handleMoving後のpositionで再判定
+    /* Delta[]positionで判定 */
+    // 移動後の座標がField内かどうか or 移動後のcolがsnakeかどうかを調べ、trueならhandleMoving === falseを返す。
+    // useEffectのcanContinueメソッドでゲーム続行か否かを決める。
+    if (isCollision(fields.length, newPosition) || isEatingMyself(fields, newPosition)) {
       return false;
     };
 
-    fields[y][x] = ''; // 紛らわしいが、fields[列][cols] なので初めにY軸,2つ目にX軸の位置情報を持つ。
-    fields[newPosition.y][newPosition.x] = 'snake'; // 移動後のy座標にsnakeを移動する。
-    setPosition(newPosition); // positionステートにnewPosition.yとxをセットする。
+    const newBody = [...body]; // body対して.popや.unshiftなど破壊的メソッドがあるため、参照コピーしておく。
+    if (fields[newPosition.y][newPosition.x] !== 'food') { // エサを食べない場合
+      // 紛らわしいがfields[列][cols]:初めにY軸,2つ目にX軸の位置情報を持つ。
+      const removingTrack = newBody.pop(); // 配列から最後の要素を取り除き、その要素を返す。
+      fields[removingTrack.y][removingTrack.x] = ''; // 取り除いた要素の座標にある中身を空にする。
+    } else { // エサを食べる場合
+      const food = getFoodPosition(fields.length, [...newBody, newPosition]) // 引数2はsnakeの現在位置
+      fields[food.y][food.x] = "food"; // 再度ランダムでfood出現
+    }
+
+    fields[newPosition.y][newPosition.x] = 'snake'; // 移動後の座標をsnakeのbodyにする。
+    newBody.unshift(newPosition); // コピーしたbodyの先頭にnewPosition({x,y})を追加する。
+    setBody(newBody); // 大元のbodyに移動後の座標を追加する
     setFields(fields); // positionを更新したfields.jsで作成したFieldを描画する。
     return true;
   };
@@ -216,13 +268,13 @@ useEffect(() => {
         <div className="title-container">
           <h1 className="title">Snake Game</h1>
         </div>
-        <Navigation />
+        <Navigation length={body.length} difficulty={difficulty} onChangeDifficulty={onChangeDifficulty} />
       </header>
       <main className="main">
         <Field fields={fields} /> {/* fieldsのパラメータにサイズを渡す */}
       </main>
       <footer className="footer">
-        <Button onStart={onStart} onRestart={onRestart} status={status} />
+        <Button onStart={onStart} onStop={onStop} onRestart={onRestart} status={status} />
         <ManipulationPanel onChange={onChangeDirection} /> {/* 操作パネルに向き情報を渡す */}
       </footer>
     </div>
