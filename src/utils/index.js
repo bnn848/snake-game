@@ -28,6 +28,7 @@ export const initFields = (fieldSize, snake) => { // <--- 引数2は App.js の 
   for (let i = 0; i < fieldSize; i++) { // 列ごとに繰り返し処理
     const cols = new Array(fieldSize).fill('') // 正方形となるよう、列数と同数の''を含むcolsを作成。
     fields.push(cols) // fields配列に末尾から追加する。
+    // fields = [ [col, cols, ...], [col, cols, ...], ... ]という入れ子状態の配列ができる
   };
 
   /* snake初期位置 */
@@ -40,8 +41,19 @@ export const initFields = (fieldSize, snake) => { // <--- 引数2は App.js の 
   return fields;
 };
 
-/*
-fields = [ [col, cols, ...], [col, cols, ...], ... ]という入れ子状態の配列ができる
+/* isCollision */
+export const isCollision = (fieldSize, position) => {// パラメータにfieldとpositionをもらう。
+  if (position.x < 0 || position.y < 0) {// positionが各軸下限のとき
+    return true;
+  }
+  if (position.x > fieldSize - 1 || position.y > fieldSize -1) { // positionが各軸上限のとき
+    return true;
+  }
+  return false;
+};
 
-
-*/
+/* isEatingMyself */
+// 次のpositionがsnakeかどうかを判定する
+export const isEatingMyself = (fields, position) => {
+  return fields[position.y][position.x] === "snake";
+};

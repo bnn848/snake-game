@@ -1,8 +1,8 @@
 {
-  "name": "hooks-snake-game",
+  "name": "snake-game",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://bnn848.github.io/hooks-snake-game",
+  "homepage": "https://bnn848.github.io/snake-game",
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^1.2.35",
     "@fortawesome/free-solid-svg-icons": "^5.15.3",
